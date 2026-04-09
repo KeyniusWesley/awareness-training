@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keynius Training</title>
+    <link rel="icon" href="/assets/brand/keynius-symbol.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/shared.css" />
+  </head>
+  <body>
+    <div class="shell learner-shell">
+      <header class="topbar">
+        <div class="brand-row">
+          <img class="brand-logo" src="/assets/brand/keynius-logo.svg" alt="Keynius" />
+          <div>
+            <p class="eyebrow">Learner access</p>
+            <h1>Security Awareness Training</h1>
+          </div>
+        </div>
+      </header>
+
+      <main id="learnerApp" class="learner-app">
+        <section id="gateView" class="panel centered-panel">
+          <p class="eyebrow">Open your invite</p>
+          <h2>Enter your access code</h2>
+          <p id="inviteEmail" class="muted-copy"></p>
+
+          <form id="codeForm" class="form-stack">
+            <label class="field">
+              <span>Access code</span>
+              <input id="accessCode" type="text" inputmode="numeric" maxlength="6" placeholder="6 digits" required />
+            </label>
+            <button class="primary-button" type="submit">Open training</button>
+          </form>
+
+          <div id="gateMessage" class="callout hidden"></div>
+        </section>
+
+        <section id="trainingView" class="hidden">
+          <div class="learner-grid">
+            <aside class="panel progress-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Progress</p>
+                  <h2 id="progressTitle">Topic 1</h2>
+                </div>
+                <span id="attemptPill" class="status-pill neutral">Attempt 1</span>
+              </div>
+              <div id="topicList" class="topic-list"></div>
+            </aside>
+
+            <section class="panel training-panel">
+              <div class="hero-card">
+                <div>
+                  <p id="topicKicker" class="eyebrow"></p>
+                  <h2 id="topicTitle"></h2>
+                  <p id="topicSummary" class="muted-copy"></p>
+                </div>
+                <img id="topicImage" class="hero-image" alt="" />
+              </div>
+
+              <div class="content-grid">
+                <article class="content-card">
+                  <h3>Subject and explanation</h3>
+                  <p id="topicExplanation"></p>
+                </article>
+
+                <article class="content-card">
+                  <h3>Policy rules</h3>
+                  <ul id="topicRules"></ul>
+                </article>
+
+                <article class="content-card">
+                  <h3>Biggest risks</h3>
+                  <ul id="topicRisks"></ul>
+                </article>
+              </div>
+
+              <section class="question-section">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Questions</p>
+                    <h3>Answer this topic</h3>
+                  </div>
+                  <span class="status-pill neutral">Answers lock after submit</span>
+                </div>
+                <form id="topicForm" class="question-stack"></form>
+                <div id="topicMessage" class="callout hidden"></div>
+                <button id="submitTopic" class="primary-button" type="button">Submit this topic</button>
+              </section>
+            </section>
+          </div>
+        </section>
+
+        <section id="resultView" class="panel centered-panel hidden">
+          <p class="eyebrow">Result</p>
+          <h2 id="resultTitle"></h2>
+          <p id="resultSummary" class="muted-copy"></p>
+          <div id="resultBadge" class="result-badge"></div>
+          <button id="retryButton" class="primary-button hidden" type="button">Start retry</button>
+        </section>
+      </main>
+    </div>
+
+    <script src="/participant.js"></script>
+  </body>
+</html>

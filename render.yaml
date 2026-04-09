@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: awareness-training
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    disk:
+      name: awareness-training-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: APP_BASE_URL
+        sync: false
+      - key: APP_ENCRYPTION_KEY
+        generateValue: true

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keynius Security Awareness Training</title>
+    <link rel="icon" href="assets/brand/keynius-symbol.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="assets/brand/keynius-logo.svg" alt="Keynius" />
+          <div class="brand-copy">
+            <p class="eyebrow">Audience mode</p>
+            <h1>Security Awareness Training</h1>
+            <p class="header-text">
+              A live, front-of-room training flow based on Keynius and Smart Locking Group policy.
+            </p>
+          </div>
+        </div>
+
+        <div class="header-meta">
+          <div class="meta-chip">8 topics</div>
+          <div class="meta-chip">22 minutes</div>
+          <div class="meta-chip">Policy-based</div>
+        </div>
+      </header>
+
+      <main class="app-layout">
+        <aside class="session-map">
+          <div class="map-header">
+            <div>
+              <p class="eyebrow">Session map</p>
+              <h2>Training flow</h2>
+            </div>
+            <span id="progressPill" class="progress-pill">1 / 7</span>
+          </div>
+
+          <div id="topicNav" class="topic-nav"></div>
+
+          <div class="map-controls">
+            <button id="prevTopic" class="ghost-button" type="button">Previous</button>
+            <button id="nextTopic" class="primary-button" type="button">Next topic</button>
+          </div>
+        </aside>
+
+        <section id="topicStage" class="topic-stage">
+          <section class="topic-hero">
+            <div class="topic-copy">
+              <div class="topic-topline">
+                <p id="topicKicker" class="eyebrow"></p>
+                <span id="topicDuration" class="duration-chip"></span>
+              </div>
+              <h2 id="topicTitle"></h2>
+              <p id="topicSummary" class="topic-summary"></p>
+            </div>
+
+            <div class="topic-visual">
+              <img id="topicImage" class="topic-image" alt="" />
+            </div>
+          </section>
+
+          <section class="flow-grid">
+            <article class="flow-card">
+              <div class="step-badge">1</div>
+              <h3>Subject and explanation</h3>
+              <p id="topicExplanation" class="body-copy"></p>
+            </article>
+
+            <article class="flow-card">
+              <div class="step-badge">2</div>
+              <h3>Our policy rules</h3>
+              <ul id="topicRules" class="content-list"></ul>
+            </article>
+
+            <article class="flow-card">
+              <div class="step-badge">3</div>
+              <h3>Biggest risks</h3>
+              <ul id="topicRisks" class="content-list"></ul>
+            </article>
+
+            <article class="flow-card questions-card">
+              <div class="step-badge">4</div>
+              <div class="question-header">
+                <div>
+                  <h3>5 questions to answer together</h3>
+                  <p class="question-intro">
+                    Ask the room first, then click the best answer together.
+                  </p>
+                </div>
+              </div>
+              <div id="topicQuestions" class="question-stack"></div>
+            </article>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

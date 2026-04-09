@@ -1,0 +1,23 @@
+<svg width="720" height="520" viewBox="0 0 720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="520" rx="36" fill="url(#bg)"/>
+  <circle cx="116" cy="106" r="74" fill="white" fill-opacity=".08"/>
+  <circle cx="594" cy="404" r="92" fill="white" fill-opacity=".08"/>
+  <rect x="126" y="104" width="470" height="314" rx="34" fill="white" fill-opacity=".16"/>
+  <rect x="178" y="136" width="280" height="248" rx="24" fill="white" fill-opacity=".94"/>
+  <rect x="216" y="182" width="188" height="24" rx="12" fill="#0044CE"/>
+  <rect x="216" y="230" width="166" height="20" rx="10" fill="#0A624F"/>
+  <rect x="216" y="270" width="178" height="20" rx="10" fill="#0A624F"/>
+  <rect x="216" y="310" width="142" height="20" rx="10" fill="#0A624F"/>
+  <path d="M486 176H554V244H486V176Z" fill="white" fill-opacity=".88"/>
+  <path d="M500 209L514 223L542 195" stroke="#09896D" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="462" y="276" width="114" height="84" rx="22" fill="#0044CE"/>
+  <path d="M499 276V254C499 240.193 510.193 229 524 229C537.807 229 549 240.193 549 254V276" stroke="white" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="524" cy="314" r="12" fill="white"/>
+  <path d="M524 326V340" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="76" y1="42" x2="654" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0044CE"/>
+      <stop offset="1" stop-color="#0A624F"/>
+    </linearGradient>
+  </defs>
+</svg>

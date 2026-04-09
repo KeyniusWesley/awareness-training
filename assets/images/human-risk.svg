@@ -1,0 +1,23 @@
+<svg width="720" height="520" viewBox="0 0 720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="520" rx="36" fill="url(#bg)"/>
+  <circle cx="584" cy="116" r="78" fill="white" fill-opacity=".12"/>
+  <circle cx="124" cy="400" r="96" fill="white" fill-opacity=".08"/>
+  <rect x="92" y="120" width="536" height="282" rx="28" fill="white" fill-opacity=".18"/>
+  <rect x="122" y="156" width="126" height="170" rx="26" fill="white" fill-opacity=".92"/>
+  <circle cx="185" cy="204" r="30" fill="#0044CE"/>
+  <path d="M145 282C145 255.49 166.49 234 193 234H177C203.51 234 225 255.49 225 282V293H145V282Z" fill="#19C29D"/>
+  <rect x="296" y="170" width="138" height="30" rx="15" fill="white" fill-opacity=".94"/>
+  <rect x="296" y="222" width="212" height="24" rx="12" fill="white" fill-opacity=".7"/>
+  <rect x="296" y="264" width="182" height="24" rx="12" fill="white" fill-opacity=".7"/>
+  <rect x="296" y="306" width="160" height="24" rx="12" fill="white" fill-opacity=".7"/>
+  <circle cx="548" cy="292" r="56" fill="#0044CE"/>
+  <path d="M548 248L557.882 278.412H589.853L563.985 297.176L573.868 327.588L548 308.824L522.132 327.588L532.015 297.176L506.147 278.412H538.118L548 248Z" fill="white"/>
+  <path d="M454 110L484 80" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M484 110L454 80" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="56" y1="40" x2="650" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0044CE"/>
+      <stop offset="1" stop-color="#09896D"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,13 +1,112 @@
 const inviteToken = window.location.pathname.split("/invite/")[1];
+const ATTEMPT_STORAGE_KEY = `training-attempt-${inviteToken}`;
+const LANGUAGE_STORAGE_KEY = "training-language";
+
+const translations = {
+  nl: {
+    pageTitleText: "Awarenesstraining informatiebeveiliging",
+    pageEyebrow: "Deelnemerstoegang",
+    gateEyebrow: "Open je uitnodiging",
+    gateTitle: "Voer je toegangscode in",
+    accessCodeLabel: "Toegangscode",
+    accessCodePlaceholder: "6 cijfers",
+    openTrainingButton: "Open training",
+    progressEyebrow: "Voortgang",
+    subjectHeading: "Onderwerp en uitleg",
+    rulesHeading: "Beleidsregels",
+    risksHeading: "Grootste risico's",
+    questionsEyebrow: "Vragen",
+    questionsTitle: "Beantwoord dit onderwerp",
+    answersLockLabel: "Antwoorden worden vastgezet na verzenden",
+    submitTopic: "Verzend dit onderwerp",
+    resultEyebrow: "Resultaat",
+    retryButton: "Start opnieuw",
+    inviteFor: (email) => `Uitnodiging voor ${email}`,
+    progressTitle: (current, total) => `Onderwerp ${current} van ${total}`,
+    attemptPill: (attemptNumber) => `Poging ${attemptNumber}`,
+    topicStateCompleted: "Voltooid",
+    topicStateCurrent: "Huidig onderwerp",
+    topicStateLocked: "Vergrendeld",
+    resultAlreadyCompleted: "Training al afgerond",
+    resultPassed: "Je bent geslaagd",
+    resultRetry: "Opnieuw nodig",
+    resultAlreadyCompletedSummary: "Deze uitnodiging is al als geslaagd geregistreerd.",
+    resultSummary: (score, correct, total, threshold) =>
+      `Score: ${score}% (${correct}/${total}). Je hebt minimaal ${threshold}% nodig om te slagen.`,
+    resultBadgePassed: "Geslaagd",
+    resultBadgeFailed: "Nog niet geslaagd",
+    questionCorrect: "Goed.",
+    questionIncorrect: (label) => `Fout. Het juiste antwoord is ${label}.`,
+    unexpectedResponse: "De trainingsservice gaf een onverwachte reactie terug.",
+    genericError: "Er ging iets mis.",
+    htmlLang: "nl"
+  },
+  en: {
+    pageTitleText: "Security Awareness Training",
+    pageEyebrow: "Participant access",
+    gateEyebrow: "Open your invite",
+    gateTitle: "Enter your access code",
+    accessCodeLabel: "Access code",
+    accessCodePlaceholder: "6 digits",
+    openTrainingButton: "Open training",
+    progressEyebrow: "Progress",
+    subjectHeading: "Subject and explanation",
+    rulesHeading: "Policy rules",
+    risksHeading: "Biggest risks",
+    questionsEyebrow: "Questions",
+    questionsTitle: "Answer this topic",
+    answersLockLabel: "Answers lock after submit",
+    submitTopic: "Submit this topic",
+    resultEyebrow: "Result",
+    retryButton: "Start retry",
+    inviteFor: (email) => `Invite for ${email}`,
+    progressTitle: (current, total) => `Topic ${current} of ${total}`,
+    attemptPill: (attemptNumber) => `Attempt ${attemptNumber}`,
+    topicStateCompleted: "Completed",
+    topicStateCurrent: "Current topic",
+    topicStateLocked: "Locked",
+    resultAlreadyCompleted: "Training already passed",
+    resultPassed: "You passed",
+    resultRetry: "Retry required",
+    resultAlreadyCompletedSummary: "This invite is already marked as passed.",
+    resultSummary: (score, correct, total, threshold) =>
+      `Score: ${score}% (${correct}/${total}). You need at least ${threshold}% to pass.`,
+    resultBadgePassed: "Passed",
+    resultBadgeFailed: "Not passed yet",
+    questionCorrect: "Correct.",
+    questionIncorrect: (label) => `Incorrect. The correct answer is ${label}.`,
+    unexpectedResponse: "The training service returned an unexpected response.",
+    genericError: "Something went wrong.",
+    htmlLang: "en"
+  }
+};
 
 const gateView = document.getElementById("gateView");
 const trainingView = document.getElementById("trainingView");
 const resultView = document.getElementById("resultView");
 
+const langNl = document.getElementById("langNl");
+const langEn = document.getElementById("langEn");
+const pageEyebrow = document.getElementById("pageEyebrow");
+const pageTitle = document.getElementById("pageTitle");
+const gateEyebrow = document.getElementById("gateEyebrow");
+const gateTitle = document.getElementById("gateTitle");
+const accessCodeLabel = document.getElementById("accessCodeLabel");
+const openTrainingButton = document.getElementById("openTrainingButton");
+
 const inviteEmail = document.getElementById("inviteEmail");
 const codeForm = document.getElementById("codeForm");
 const accessCode = document.getElementById("accessCode");
 const gateMessage = document.getElementById("gateMessage");
+
+const progressEyebrow = document.getElementById("progressEyebrow");
+const subjectHeading = document.getElementById("subjectHeading");
+const rulesHeading = document.getElementById("rulesHeading");
+const risksHeading = document.getElementById("risksHeading");
+const questionsEyebrow = document.getElementById("questionsEyebrow");
+const questionsTitle = document.getElementById("questionsTitle");
+const answersLockLabel = document.getElementById("answersLockLabel");
+const resultEyebrow = document.getElementById("resultEyebrow");
 
 const topicList = document.getElementById("topicList");
 const progressTitle = document.getElementById("progressTitle");
@@ -28,11 +127,22 @@ const resultSummary = document.getElementById("resultSummary");
 const resultBadge = document.getElementById("resultBadge");
 const retryButton = document.getElementById("retryButton");
 
+const memoryStore = new Map();
+
 const state = {
   invite: null,
   attempt: null,
-  training: null
+  training: null,
+  language: "nl"
 };
+
+function normalizeLanguage(lang) {
+  return String(lang || "").trim().toLowerCase() === "en" ? "en" : "nl";
+}
+
+function t() {
+  return translations[state.language];
+}
 
 function setCallout(element, type, text) {
   element.className = `callout ${type}`;
@@ -41,27 +151,104 @@ function setCallout(element, type, text) {
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json();
+  const text = await response.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(t().unexpectedResponse);
+  }
+
   if (!response.ok) {
-    throw new Error(data.error || "Request failed.");
+    throw new Error(data.error || t().genericError);
   }
   return data;
 }
 
+function safeGet(key) {
+  try {
+    return sessionStorage.getItem(key) || localStorage.getItem(key);
+  } catch {
+    return memoryStore.get(key) || null;
+  }
+}
+
+function safeSet(key, value, storage = "session") {
+  try {
+    if (storage === "local") {
+      localStorage.setItem(key, value);
+    } else {
+      sessionStorage.setItem(key, value);
+    }
+  } catch {
+    memoryStore.set(key, value);
+  }
+}
+
+function safeRemove(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    memoryStore.delete(key);
+  }
+}
+
+function getPreferredLanguage() {
+  const params = new URLSearchParams(window.location.search);
+  return normalizeLanguage(params.get("lang") || safeGet(LANGUAGE_STORAGE_KEY) || "nl");
+}
+
+function updateLanguageInUrl(language) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("lang", language);
+  window.location.href = url.toString();
+}
+
+function applyStaticText() {
+  document.documentElement.lang = t().htmlLang;
+  document.title = t().pageTitleText;
+  pageEyebrow.textContent = t().pageEyebrow;
+  pageTitle.textContent = t().pageTitleText;
+  gateEyebrow.textContent = t().gateEyebrow;
+  gateTitle.textContent = t().gateTitle;
+  accessCodeLabel.textContent = t().accessCodeLabel;
+  accessCode.placeholder = t().accessCodePlaceholder;
+  openTrainingButton.textContent = t().openTrainingButton;
+  progressEyebrow.textContent = t().progressEyebrow;
+  subjectHeading.textContent = t().subjectHeading;
+  rulesHeading.textContent = t().rulesHeading;
+  risksHeading.textContent = t().risksHeading;
+  questionsEyebrow.textContent = t().questionsEyebrow;
+  questionsTitle.textContent = t().questionsTitle;
+  answersLockLabel.textContent = t().answersLockLabel;
+  submitTopicButton.textContent = t().submitTopic;
+  resultEyebrow.textContent = t().resultEyebrow;
+  retryButton.textContent = t().retryButton;
+  if (state.invite?.email) {
+    inviteEmail.textContent = t().inviteFor(state.invite.email);
+  }
+  langNl.classList.toggle("active", state.language === "nl");
+  langEn.classList.toggle("active", state.language === "en");
+}
+
 function getStoredAttempt() {
-  const raw = sessionStorage.getItem(`training-attempt-${inviteToken}`);
+  const raw = safeGet(ATTEMPT_STORAGE_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
 function storeAttempt(attempt) {
-  sessionStorage.setItem(
-    `training-attempt-${inviteToken}`,
-    JSON.stringify({ attemptId: attempt.id, accessToken: attempt.accessToken })
+  safeSet(
+    ATTEMPT_STORAGE_KEY,
+    JSON.stringify({
+      attemptId: attempt.id,
+      accessToken: attempt.accessToken
+    })
   );
 }
 
 function clearStoredAttempt() {
-  sessionStorage.removeItem(`training-attempt-${inviteToken}`);
+  safeRemove(ATTEMPT_STORAGE_KEY);
 }
 
 function logAttemptEvent(eventType, extra = {}) {
@@ -103,7 +290,9 @@ function renderTopicList() {
       "beforeend",
       `<div class="${cls.join(" ")}">
         <h4>${topic.title}</h4>
-        <p class="muted-copy">${completed ? "Completed" : current ? "Current topic" : "Locked"}</p>
+        <p class="muted-copy">${
+          completed ? t().topicStateCompleted : current ? t().topicStateCurrent : t().topicStateLocked
+        }</p>
       </div>`
     );
   });
@@ -126,6 +315,7 @@ function renderQuestions(topic) {
       const label = document.createElement("label");
       label.className = "choice-label";
       label.setAttribute("for", id);
+      label.dataset.choiceIndex = String(choiceIndex);
       label.innerHTML = `
         <input id="${id}" type="radio" name="question-${questionIndex}" value="${choiceIndex}" />
         <span><strong>${labels[choiceIndex]}.</strong> ${choice}</span>
@@ -134,8 +324,48 @@ function renderQuestions(topic) {
     });
 
     card.appendChild(choiceList);
+    const feedback = document.createElement("div");
+    feedback.className = "question-feedback hidden";
+    feedback.dataset.role = "feedback";
+    card.appendChild(feedback);
     topicForm.appendChild(card);
   });
+}
+
+function applyQuestionFeedback(questionIndex, selectedIndex) {
+  const topic = state.training.topics[state.attempt.currentTopicIndex];
+  const question = topic.questions[questionIndex];
+  const card = topicForm.children[questionIndex];
+  const feedback = card?.querySelector('[data-role="feedback"]');
+  const labels = ["A", "B", "C", "D"];
+
+  if (!question || !card || !feedback) {
+    return;
+  }
+
+  card.querySelectorAll(".choice-label").forEach((label) => {
+    const choiceIndex = Number(label.dataset.choiceIndex);
+    const input = label.querySelector("input");
+    label.classList.remove("correct", "wrong", "revealed");
+
+    if (choiceIndex === question.correctChoiceIndex) {
+      label.classList.add("correct", "revealed");
+    }
+
+    if (choiceIndex === selectedIndex && selectedIndex !== question.correctChoiceIndex) {
+      label.classList.add("wrong", "revealed");
+    }
+
+    if (input) {
+      input.disabled = true;
+    }
+  });
+
+  feedback.className = `question-feedback ${selectedIndex === question.correctChoiceIndex ? "success" : "error"}`;
+  feedback.textContent =
+    selectedIndex === question.correctChoiceIndex
+      ? t().questionCorrect
+      : t().questionIncorrect(labels[question.correctChoiceIndex]);
 }
 
 function showView(name) {
@@ -147,8 +377,8 @@ function showView(name) {
 function renderCurrentTopic() {
   const topic = state.training.topics[state.attempt.currentTopicIndex];
 
-  progressTitle.textContent = `Topic ${state.attempt.currentTopicIndex + 1} of ${state.training.totalTopics}`;
-  attemptPill.textContent = `Attempt ${state.attempt.attemptNumber}`;
+  progressTitle.textContent = t().progressTitle(state.attempt.currentTopicIndex + 1, state.training.totalTopics);
+  attemptPill.textContent = t().attemptPill(state.attempt.attemptNumber);
   topicKicker.textContent = topic.kicker;
   topicTitle.textContent = topic.title;
   topicSummary.textContent = topic.summary;
@@ -162,27 +392,33 @@ function renderCurrentTopic() {
   topicMessage.classList.add("hidden");
   logAttemptEvent("topic_viewed", {
     topicIndex: state.attempt.currentTopicIndex,
-    metadata: { title: topic.title }
+    metadata: { title: topic.title, entry: "invite", language: state.language }
   });
   showView("training");
 }
 
 function renderResult(result, alreadyPassed = false) {
   clearStoredAttempt();
-  resultTitle.textContent = alreadyPassed ? "Training already passed" : result.passed ? "You passed" : "Retry required";
+  resultTitle.textContent = alreadyPassed
+    ? t().resultAlreadyCompleted
+    : result.passed
+      ? t().resultPassed
+      : t().resultRetry;
   resultSummary.textContent = alreadyPassed
-    ? `This invite is already marked as passed.`
-    : `Score: ${result.scorePercent}% (${result.correctAnswers}/${result.totalQuestions}). You need at least ${state.training?.passThreshold || 85}% to pass.`;
+    ? t().resultAlreadyCompletedSummary
+    : t().resultSummary(result.scorePercent, result.correctAnswers, result.totalQuestions, state.training?.passThreshold || 85);
 
   resultBadge.className = `result-badge ${alreadyPassed || result.passed ? "pass" : "fail"}`;
-  resultBadge.textContent = alreadyPassed || result.passed ? "Passed" : "Not passed yet";
+  resultBadge.textContent = alreadyPassed || result.passed ? t().resultBadgePassed : t().resultBadgeFailed;
 
   retryButton.classList.toggle("hidden", alreadyPassed || result.passed);
   logAttemptEvent("result_viewed", {
     metadata: {
       alreadyPassed,
       passed: alreadyPassed || result.passed,
-      scorePercent: result.scorePercent ?? null
+      scorePercent: result.scorePercent ?? null,
+      entry: "invite",
+      language: state.language
     }
   });
   showView("result");
@@ -190,36 +426,46 @@ function renderResult(result, alreadyPassed = false) {
 
 async function loadInviteInfo() {
   const info = await fetchJson(`/api/invite/${inviteToken}`);
-  inviteEmail.textContent = `Invite for ${info.email}`;
+  state.invite = info;
+  applyStaticText();
 
   if (info.passedAt && info.latestAttempt) {
     renderResult(info.latestAttempt, true);
+    return;
   }
+
+  showView("gate");
 }
 
 async function openAttempt(payload) {
   state.invite = payload.invite;
   state.attempt = payload.attempt;
   state.training = payload.training;
+  state.language = normalizeLanguage(payload.training.language || state.language);
   storeAttempt(payload.attempt);
+  applyStaticText();
   renderCurrentTopic();
 }
 
 async function resumeAttemptIfPossible() {
   if (!resultView.classList.contains("hidden")) {
-    return;
+    return false;
   }
 
   const stored = getStoredAttempt();
   if (!stored) {
-    return;
+    return false;
   }
 
   try {
-    const payload = await fetchJson(`/api/attempts/${stored.attemptId}?accessToken=${encodeURIComponent(stored.accessToken)}`);
+    const payload = await fetchJson(
+      `/api/attempts/${stored.attemptId}?accessToken=${encodeURIComponent(stored.accessToken)}&lang=${state.language}`
+    );
     await openAttempt(payload);
+    return true;
   } catch {
     clearStoredAttempt();
+    return false;
   }
 }
 
@@ -231,7 +477,10 @@ codeForm.addEventListener("submit", async (event) => {
     const payload = await fetchJson(`/api/invite/${inviteToken}/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: accessCode.value })
+      body: JSON.stringify({
+        code: accessCode.value,
+        lang: state.language
+      })
     });
 
     if (payload.alreadyPassed) {
@@ -260,8 +509,10 @@ topicForm.addEventListener("change", (event) => {
   logAttemptEvent("question_answer_selected", {
     topicIndex: state.attempt.currentTopicIndex,
     questionIndex,
-    choiceIndex
+    choiceIndex,
+    metadata: { entry: "invite", language: state.language }
   });
+  applyQuestionFeedback(questionIndex, choiceIndex);
 });
 
 submitTopicButton.addEventListener("click", async () => {
@@ -271,11 +522,6 @@ submitTopicButton.addEventListener("click", async () => {
     return checked ? Number(checked.value) : null;
   });
 
-  if (answers.some((value) => value === null)) {
-    setCallout(topicMessage, "error", "Answer every question in this topic before submitting.");
-    return;
-  }
-
   submitTopicButton.disabled = true;
 
   try {
@@ -284,7 +530,8 @@ submitTopicButton.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         accessToken: state.attempt.accessToken,
-        answers
+        answers,
+        lang: state.language
       })
     });
 
@@ -313,7 +560,8 @@ retryButton.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         attemptId: state.attempt.id,
-        accessToken: state.attempt.accessToken
+        accessToken: state.attempt.accessToken,
+        lang: state.language
       })
     });
 
@@ -323,8 +571,28 @@ retryButton.addEventListener("click", async () => {
   }
 });
 
-loadInviteInfo()
-  .then(resumeAttemptIfPossible)
-  .catch((error) => {
+langNl.addEventListener("click", () => {
+  safeSet(LANGUAGE_STORAGE_KEY, "nl", "local");
+  updateLanguageInUrl("nl");
+});
+
+langEn.addEventListener("click", () => {
+  safeSet(LANGUAGE_STORAGE_KEY, "en", "local");
+  updateLanguageInUrl("en");
+});
+
+(async () => {
+  state.language = getPreferredLanguage();
+  applyStaticText();
+
+  try {
+    await loadInviteInfo();
+    const resumed = await resumeAttemptIfPossible();
+    if (!resumed && !state.training && resultView.classList.contains("hidden")) {
+      showView("gate");
+    }
+  } catch (error) {
     setCallout(gateMessage, "error", error.message);
-  });
+    showView("gate");
+  }
+})();

@@ -20,7 +20,10 @@ const PASS_THRESHOLD = 85;
 const DATA_DIR = path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "app.db");
 const KEY_FILE = path.join(DATA_DIR, "encryption.key");
-const TRAINING_SOURCE = path.join(__dirname, "app.js");
+const TRAINING_SOURCES = {
+  en: path.join(__dirname, "app.js"),
+  nl: path.join(__dirname, "app.nl.js")
+};
 const MICROSOFT_SCOPES = ["openid", "profile", "email", "offline_access", "User.Read", "Mail.Send"];
 
 const DEFAULT_MAIL_SUBJECT = "Keynius Security Awareness Training";
@@ -235,12 +238,17 @@ function getBooleanSetting(key) {
   return getSetting(key) === "true";
 }
 
-function loadTopics() {
-  const source = fs.readFileSync(TRAINING_SOURCE, "utf8");
+function normalizeLanguage(lang) {
+  return String(lang || "").trim().toLowerCase() === "en" ? "en" : "nl";
+}
+
+function loadTopics(lang = "nl") {
+  const sourceFile = TRAINING_SOURCES[normalizeLanguage(lang)] || TRAINING_SOURCES.nl;
+  const source = fs.readFileSync(sourceFile, "utf8");
   const match = source.match(/const topics = (\[[\s\S]*?\n\]);\n\nlet currentTopicIndex/);
 
   if (!match) {
-    throw new Error("Could not load training topics from app.js.");
+    throw new Error(`Could not load training topics from ${path.basename(sourceFile)}.`);
   }
 
   return vm.runInNewContext(match[1]);
@@ -258,6 +266,7 @@ function sanitizeTopicsForLearner(topics) {
     image: topic.image,
     questions: topic.questions.map((question) => ({
       prompt: question.prompt,
+      correctChoiceIndex: question.choices.findIndex((choice) => choice.correct),
       choices: question.choices.map((choice) => choice.text)
     }))
   }));
@@ -878,8 +887,8 @@ function getAttemptOrThrow(db, attemptId, accessToken) {
   return attempt;
 }
 
-function learnerPayload(invite, attempt) {
-  const topics = loadTopics();
+function learnerPayload(invite, attempt, lang = "nl") {
+  const topics = loadTopics(lang);
   const safeTopics = sanitizeTopicsForLearner(topics);
   return {
     invite: {
@@ -899,6 +908,7 @@ function learnerPayload(invite, attempt) {
       passed: attempt.passed
     },
     training: {
+      language: normalizeLanguage(lang),
       passThreshold: PASS_THRESHOLD,
       totalTopics: safeTopics.length,
       totalQuestions: topics.reduce((sum, topic) => sum + topic.questions.length, 0),
@@ -1119,6 +1129,7 @@ app.post("/api/admin/send-invite", async (req, res, next) => {
 app.post("/api/share/start", (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email);
+    const lang = normalizeLanguage(req.body.lang);
 
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Enter a valid work email address." });
@@ -1164,7 +1175,7 @@ app.post("/api/share/start", (req, res, next) => {
       metadata: { email }
     });
 
-    res.json(learnerPayload(invite, attempt));
+    res.json(learnerPayload(invite, attempt, lang));
   } catch (error) {
     next(error);
   }
@@ -1173,6 +1184,7 @@ app.post("/api/share/start", (req, res, next) => {
 app.post("/api/public/start", (req, res, next) => {
   try {
     const sessionToken = String(req.body.sessionToken || "").trim();
+    const lang = normalizeLanguage(req.body.lang);
     if (sessionToken.length < 12) {
       return res.status(400).json({ error: "Invalid public session." });
     }
@@ -1217,7 +1229,7 @@ app.post("/api/public/start", (req, res, next) => {
       metadata: { entry: "public" }
     });
 
-    res.json(learnerPayload(invite, attempt));
+    res.json(learnerPayload(invite, attempt, lang));
   } catch (error) {
     next(error);
   }
@@ -1252,6 +1264,7 @@ app.get("/api/invite/:token", (req, res) => {
 app.post("/api/invite/:token/verify", (req, res) => {
   const db = readDb();
   const invite = findInviteByToken(db, req.params.token);
+  const lang = normalizeLanguage(req.body.lang);
 
   if (!invite) {
     return res.status(404).json({ error: "Invite not found." });
@@ -1299,12 +1312,13 @@ app.post("/api/invite/:token/verify", (req, res) => {
     eventType: "invite_code_verified"
   });
 
-  res.json(learnerPayload(invite, attempt));
+  res.json(learnerPayload(invite, attempt, lang));
 });
 
 app.post("/api/invite/:token/retry", (req, res) => {
   const db = readDb();
   const invite = findInviteByToken(db, req.params.token);
+  const lang = normalizeLanguage(req.body.lang);
 
   if (!invite) {
     return res.status(404).json({ error: "Invite not found." });
@@ -1327,7 +1341,7 @@ app.post("/api/invite/:token/retry", (req, res) => {
     eventType: "retry_started",
     metadata: { previousAttemptId: previousAttempt.id }
   });
-  res.json(learnerPayload(invite, attempt));
+  res.json(learnerPayload(invite, attempt, lang));
 });
 
 app.get("/api/attempts/:attemptId", (req, res, next) => {
@@ -1335,6 +1349,7 @@ app.get("/api/attempts/:attemptId", (req, res, next) => {
     const db = readDb();
     const attempt = getAttemptOrThrow(db, req.params.attemptId, req.query.accessToken);
     const invite = db.invites.find((entry) => entry.id === attempt.inviteId);
+    const lang = normalizeLanguage(req.query.lang);
 
     if (!invite) {
       return res.status(404).json({ error: "Invite not found." });
@@ -1346,7 +1361,7 @@ app.get("/api/attempts/:attemptId", (req, res, next) => {
       eventType: "attempt_resumed"
     });
 
-    res.json(learnerPayload(invite, attempt));
+    res.json(learnerPayload(invite, attempt, lang));
   } catch (error) {
     next(error);
   }
@@ -1388,7 +1403,7 @@ app.post("/api/attempts/:attemptId/topics/:topicIndex", (req, res, next) => {
     const db = readDb();
     const attempt = getAttemptOrThrow(db, req.params.attemptId, req.body.accessToken);
     const invite = db.invites.find((entry) => entry.id === attempt.inviteId);
-    const topics = loadTopics();
+    const topics = loadTopics(req.body.lang);
     const topicIndex = Number(req.params.topicIndex);
 
     if (!invite) {
@@ -1411,9 +1426,9 @@ app.post("/api/attempts/:attemptId/topics/:topicIndex", (req, res, next) => {
     const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
     if (
       answers.length !== topic.questions.length ||
-      answers.some((value) => !Number.isInteger(value) || value < 0 || value > 3)
+      answers.some((value) => value !== null && (!Number.isInteger(value) || value < 0 || value > 3))
     ) {
-      return res.status(400).json({ error: "Submit one answer for each question in this topic." });
+      return res.status(400).json({ error: "Submit answers as A, B, C, D or leave a question unanswered." });
     }
 
     attempt.topicSubmissions.push({
@@ -1437,7 +1452,7 @@ app.post("/api/attempts/:attemptId/topics/:topicIndex", (req, res, next) => {
       attemptId: attempt.id,
       eventType: "topic_submitted",
       topicIndex,
-      metadata: { answerCount: answers.length }
+      metadata: { answerCount: answers.filter((value) => Number.isInteger(value)).length }
     });
 
     attempt.currentTopicIndex += 1;

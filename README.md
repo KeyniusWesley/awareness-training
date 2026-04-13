@@ -6,6 +6,7 @@ This project is now a shareable training web app with:
 - SQLite storage for invites, attempts, settings, and mail templates
 - encrypted storage of Microsoft OAuth values and tokens
 - a generic share link that opens the training with only a work email
+- a fully public training route with no login or access code
 - invite links plus access codes
 - locked answers per topic
 - pass/fail scoring
@@ -28,13 +29,14 @@ This project is now a shareable training web app with:
 
 You can also share a generic training link:
 
+- `http://127.0.0.1:4185/`
 - `http://127.0.0.1:4185/share`
 
 With this flow:
 
-1. The learner opens the share link.
-2. The learner enters only a work email address.
-3. The app creates or resumes the learner attempt.
+1. The learner opens the public training link.
+2. The training starts immediately without email or access code.
+3. The app creates or resumes an anonymous browser-session attempt.
 4. The learner completes the training and gets a score.
 
 The learner does not see the audit trail, but the app stores hidden activity logs for question interactions and topic submissions in SQLite.
@@ -74,7 +76,7 @@ npm start
 4. Open the admin dashboard:
 
 ```text
-http://127.0.0.1:4185
+http://127.0.0.1:4185/admin
 ```
 
 5. In the admin dashboard, fill in:

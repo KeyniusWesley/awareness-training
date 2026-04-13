@@ -154,10 +154,10 @@ async function loadConfig() {
 
   if (oauthStatus === "connected") {
     setMessage(mailConnection, "success", `${mailConnection.innerHTML}<br />Microsoft 365 account connected successfully.`);
-    window.history.replaceState({}, "", "/");
+    window.history.replaceState({}, "", "/admin");
   } else if (oauthStatus === "error") {
     setMessage(mailConnection, "error", oauthMessage || "Microsoft 365 connection failed.");
-    window.history.replaceState({}, "", "/");
+    window.history.replaceState({}, "", "/admin");
   }
 
   if (config.mailConfigured) {

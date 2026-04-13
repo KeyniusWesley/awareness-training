@@ -267,6 +267,11 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function createPublicInviteEmail(sessionToken) {
+  const hash = crypto.createHash("sha256").update(sessionToken).digest("hex").slice(0, 24);
+  return `public-${hash}@awareness.local`;
+}
+
 function createCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -903,11 +908,15 @@ function learnerPayload(invite, attempt) {
 }
 
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
+  res.sendFile(path.join(__dirname, "public", "share.html"));
 });
 
 app.get("/share", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "share.html"));
+});
+
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
 app.get("/invite/:token", (_req, res) => {
@@ -920,7 +929,7 @@ app.get("/api/config", (_req, res) => {
   const oauth = getMicrosoftOAuthConfig();
   res.json({
     appBaseUrl: APP_BASE_URL,
-    shareLink: `${APP_BASE_URL}/share`,
+    shareLink: APP_BASE_URL,
     storage: "sqlite",
     smtpConfigured,
     microsoftOAuthConfigured: isMicrosoftOAuthConfigured(),
@@ -980,7 +989,7 @@ app.post("/api/admin/settings", (req, res) => {
 
 app.get("/auth/microsoft/connect", (req, res) => {
   if (!isMicrosoftOAuthConfigured()) {
-    return res.redirect("/?msoauth=error&message=Microsoft%20365%20OAuth%20settings%20are%20not%20filled%20in%20yet.");
+    return res.redirect("/admin?msoauth=error&message=Microsoft%20365%20OAuth%20settings%20are%20not%20filled%20in%20yet.");
   }
 
   const oauth = getMicrosoftOAuthConfig();
@@ -1010,13 +1019,13 @@ app.get("/auth/microsoft/callback", async (req, res) => {
 
     if (!authSession.state || authSession.state !== providedState) {
       clearMicrosoftAuthSession();
-      return res.redirect("/?msoauth=error&message=The%20Microsoft%20365%20state%20check%20failed.");
+      return res.redirect("/admin?msoauth=error&message=The%20Microsoft%20365%20state%20check%20failed.");
     }
 
     if (req.query.error) {
       clearMicrosoftAuthSession();
       const message = encodeURIComponent(String(req.query.error_description || req.query.error));
-      return res.redirect(`/?msoauth=error&message=${message}`);
+      return res.redirect(`/admin?msoauth=error&message=${message}`);
     }
 
     const tokenData = await exchangeMicrosoftToken({
@@ -1037,10 +1046,10 @@ app.get("/auth/microsoft/callback", async (req, res) => {
     });
     clearMicrosoftAuthSession();
 
-    res.redirect("/?msoauth=connected");
+    res.redirect("/admin?msoauth=connected");
   } catch (error) {
     clearMicrosoftAuthSession();
-    res.redirect(`/?msoauth=error&message=${encodeURIComponent(error.message)}`);
+    res.redirect(`/admin?msoauth=error&message=${encodeURIComponent(error.message)}`);
   }
 });
 
@@ -1153,6 +1162,59 @@ app.post("/api/share/start", (req, res, next) => {
       attemptId: attempt.id,
       eventType,
       metadata: { email }
+    });
+
+    res.json(learnerPayload(invite, attempt));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/public/start", (req, res, next) => {
+  try {
+    const sessionToken = String(req.body.sessionToken || "").trim();
+    if (sessionToken.length < 12) {
+      return res.status(400).json({ error: "Invalid public session." });
+    }
+
+    const db = readDb();
+    const invite = getOrCreateInvite(db, createPublicInviteEmail(sessionToken));
+
+    if (invite.passedAt) {
+      const latestAttempt = getLatestAttempt(db, invite.id);
+      logActivity({
+        inviteId: invite.id,
+        attemptId: latestAttempt?.id || null,
+        eventType: "public_accessed_after_pass",
+        metadata: { entry: "public" }
+      });
+
+      return res.json({
+        alreadyPassed: true,
+        result: latestAttempt
+          ? {
+              scorePercent: latestAttempt.scorePercent,
+              correctAnswers: latestAttempt.correctAnswers,
+              totalQuestions: latestAttempt.totalQuestions,
+              submittedAt: latestAttempt.submittedAt
+            }
+          : null
+      });
+    }
+
+    let attempt = getActiveAttempt(db, invite.id);
+    let eventType = "public_resumed_attempt";
+    if (!attempt) {
+      attempt = createAttempt(db, invite.id);
+      eventType = "public_started_attempt";
+      writeDb(db);
+    }
+
+    logActivity({
+      inviteId: invite.id,
+      attemptId: attempt.id,
+      eventType,
+      metadata: { entry: "public" }
     });
 
     res.json(learnerPayload(invite, attempt));

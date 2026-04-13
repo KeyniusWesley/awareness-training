@@ -1,11 +1,9 @@
-const SHARE_STORAGE_KEY = "training-share-attempt";
+const PUBLIC_SESSION_KEY = "training-public-session";
+const PUBLIC_ATTEMPT_KEY = "training-public-attempt";
 
 const gateView = document.getElementById("gateView");
 const trainingView = document.getElementById("trainingView");
 const resultView = document.getElementById("resultView");
-
-const emailForm = document.getElementById("emailForm");
-const workEmail = document.getElementById("workEmail");
 const gateMessage = document.getElementById("gateMessage");
 
 const topicList = document.getElementById("topicList");
@@ -47,16 +45,24 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
+function ensurePublicSessionToken() {
+  let token = sessionStorage.getItem(PUBLIC_SESSION_KEY);
+  if (!token) {
+    token = crypto.randomUUID();
+    sessionStorage.setItem(PUBLIC_SESSION_KEY, token);
+  }
+  return token;
+}
+
 function getStoredAttempt() {
-  const raw = sessionStorage.getItem(SHARE_STORAGE_KEY);
+  const raw = sessionStorage.getItem(PUBLIC_ATTEMPT_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
-function storeAttempt(attempt, email) {
+function storeAttempt(attempt) {
   sessionStorage.setItem(
-    SHARE_STORAGE_KEY,
+    PUBLIC_ATTEMPT_KEY,
     JSON.stringify({
-      email,
       attemptId: attempt.id,
       accessToken: attempt.accessToken
     })
@@ -64,7 +70,7 @@ function storeAttempt(attempt, email) {
 }
 
 function clearStoredAttempt() {
-  sessionStorage.removeItem(SHARE_STORAGE_KEY);
+  sessionStorage.removeItem(PUBLIC_ATTEMPT_KEY);
 }
 
 function logAttemptEvent(eventType, extra = {}) {
@@ -165,16 +171,16 @@ function renderCurrentTopic() {
   topicMessage.classList.add("hidden");
   logAttemptEvent("topic_viewed", {
     topicIndex: state.attempt.currentTopicIndex,
-    metadata: { title: topic.title, entry: "share" }
+    metadata: { title: topic.title, entry: "public" }
   });
   showView("training");
 }
 
 function renderResult(result, alreadyPassed = false) {
   clearStoredAttempt();
-  resultTitle.textContent = alreadyPassed ? "Training already passed" : result.passed ? "You passed" : "Retry required";
+  resultTitle.textContent = alreadyPassed ? "Training already completed" : result.passed ? "You passed" : "Retry required";
   resultSummary.textContent = alreadyPassed
-    ? "This email address is already marked as passed."
+    ? "This browser session already completed the public training."
     : `Score: ${result.scorePercent}% (${result.correctAnswers}/${result.totalQuestions}). You need at least ${state.training?.passThreshold || 85}% to pass.`;
 
   resultBadge.className = `result-badge ${alreadyPassed || result.passed ? "pass" : "fail"}`;
@@ -186,58 +192,50 @@ function renderResult(result, alreadyPassed = false) {
       alreadyPassed,
       passed: alreadyPassed || result.passed,
       scorePercent: result.scorePercent ?? null,
-      entry: "share"
+      entry: "public"
     }
   });
   showView("result");
 }
 
-async function openAttempt(payload, email) {
+async function openAttempt(payload) {
   state.invite = payload.invite;
   state.attempt = payload.attempt;
   state.training = payload.training;
-  storeAttempt(payload.attempt, email || payload.invite.email);
-  workEmail.value = email || payload.invite.email;
+  storeAttempt(payload.attempt);
   renderCurrentTopic();
 }
 
 async function resumeAttemptIfPossible() {
   const stored = getStoredAttempt();
   if (!stored) {
-    return;
+    return false;
   }
-
-  workEmail.value = stored.email || "";
 
   try {
     const payload = await fetchJson(`/api/attempts/${stored.attemptId}?accessToken=${encodeURIComponent(stored.accessToken)}`);
-    await openAttempt(payload, stored.email);
+    await openAttempt(payload);
+    return true;
   } catch {
     clearStoredAttempt();
+    return false;
   }
 }
 
-emailForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  gateMessage.classList.add("hidden");
+async function startPublicTraining() {
+  const payload = await fetchJson("/api/public/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionToken: ensurePublicSessionToken() })
+  });
 
-  try {
-    const payload = await fetchJson("/api/share/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: workEmail.value })
-    });
-
-    if (payload.alreadyPassed) {
-      renderResult(payload.result || { passed: true }, true);
-      return;
-    }
-
-    await openAttempt(payload, workEmail.value.trim().toLowerCase());
-  } catch (error) {
-    setCallout(gateMessage, "error", error.message);
+  if (payload.alreadyPassed) {
+    renderResult(payload.result || { passed: true }, true);
+    return;
   }
-});
+
+  await openAttempt(payload);
+}
 
 topicForm.addEventListener("change", (event) => {
   const target = event.target;
@@ -255,7 +253,7 @@ topicForm.addEventListener("change", (event) => {
     topicIndex: state.attempt.currentTopicIndex,
     questionIndex,
     choiceIndex,
-    metadata: { entry: "share" }
+    metadata: { entry: "public" }
   });
 });
 
@@ -312,12 +310,20 @@ retryButton.addEventListener("click", async () => {
       })
     });
 
-    await openAttempt(payload, state.invite.email);
+    await openAttempt(payload);
   } catch (error) {
     resultSummary.textContent = error.message;
   }
 });
 
-resumeAttemptIfPossible().catch((error) => {
-  setCallout(gateMessage, "error", error.message);
-});
+(async () => {
+  try {
+    const resumed = await resumeAttemptIfPossible();
+    if (!resumed) {
+      await startPublicTraining();
+    }
+  } catch (error) {
+    setCallout(gateMessage, "error", error.message);
+    showView("gate");
+  }
+})();

@@ -72,6 +72,16 @@ textarea {
   margin-top: 18px;
 }
 
+.language-switch .language-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.language-switch .language-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .language-button.active {
   background: rgba(255, 255, 255, 0.18);
   color: white;

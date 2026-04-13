@@ -31,6 +31,8 @@ const state = {
   training: null
 };
 
+const memoryStore = new Map();
+
 function setCallout(element, type, text) {
   element.className = `callout ${type}`;
   element.textContent = text;
@@ -38,29 +40,70 @@ function setCallout(element, type, text) {
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json();
+  const text = await response.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error("The training service returned an unexpected response.");
+  }
+
   if (!response.ok) {
     throw new Error(data.error || "Request failed.");
   }
   return data;
 }
 
+function safeGet(key) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return memoryStore.get(key) || null;
+  }
+}
+
+function safeSet(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    memoryStore.set(key, value);
+  }
+}
+
+function safeRemove(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    memoryStore.delete(key);
+  }
+}
+
+function createSessionToken() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  const randomPart = Math.random().toString(36).slice(2);
+  return `public-${Date.now()}-${randomPart}`;
+}
+
 function ensurePublicSessionToken() {
-  let token = sessionStorage.getItem(PUBLIC_SESSION_KEY);
+  let token = safeGet(PUBLIC_SESSION_KEY);
   if (!token) {
-    token = crypto.randomUUID();
-    sessionStorage.setItem(PUBLIC_SESSION_KEY, token);
+    token = createSessionToken();
+    safeSet(PUBLIC_SESSION_KEY, token);
   }
   return token;
 }
 
 function getStoredAttempt() {
-  const raw = sessionStorage.getItem(PUBLIC_ATTEMPT_KEY);
+  const raw = safeGet(PUBLIC_ATTEMPT_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
 function storeAttempt(attempt) {
-  sessionStorage.setItem(
+  safeSet(
     PUBLIC_ATTEMPT_KEY,
     JSON.stringify({
       attemptId: attempt.id,
@@ -70,7 +113,7 @@ function storeAttempt(attempt) {
 }
 
 function clearStoredAttempt() {
-  sessionStorage.removeItem(PUBLIC_ATTEMPT_KEY);
+  safeRemove(PUBLIC_ATTEMPT_KEY);
 }
 
 function logAttemptEvent(eventType, extra = {}) {
